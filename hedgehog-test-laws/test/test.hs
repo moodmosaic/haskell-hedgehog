@@ -16,12 +16,72 @@ import           Test.QuickCheck (arbitrary1, choose, vector, Arbitrary(..), Arb
 import           Test.QuickCheck.Checkers (EqProp(..), eq, TestBatch)
 import           Test.QuickCheck.Classes ()
 
-import           Test.Tasty (TestTree, defaultMain, testGroup)
+import qualified Test.Tasty as Tasty
+import           Test.Tasty (TestTree, testGroup)
 import           Test.Tasty.QuickCheck (testProperties)
+
+-------------------------------------------------------------------------------
+
+import           Control.Monad  (unless)
+import           System.Exit    (exitFailure)
+
+import           Hedgehog
+import qualified Hedgehog.Gen   as Gen
+import qualified Hedgehog.Range as Range
+
+import           Hedgehog.Main
+
+-------------------------------------------------------------------------------
+
+hh_main :: IO ()
+hh_main =
+  defaultMain [
+      properties
+    , regressionTests
+    ]
+
+properties :: IO Bool
+properties =
+  checkParallel $ Group "Properties" [
+        ("Property A"
+        , property success)
+      , ("Property B"
+        , property discard)
+      , ("Property C"
+        , property failure)
+    ]
+
+regressionTests :: IO Bool
+regressionTests =
+  checkParallel $ Group "Regression" $
+    do
+    (a, b) <-
+      [
+        ("1", "1"),
+        ("2", "2"),
+        ("3", "3")
+      ]
+    return
+      ("Regression A"
+      , withTests 1 . property $ a === b)
+    ++
+
+    do
+    (a, b) <-
+      [
+        ("1", "1"),
+        ("2", "2"),
+        ("3", "0") -- Uh-oh!
+      ]
+    return
+      ("Regression B"
+      , withTests 1 . property $ a === b)
+
+-------------------------------------------------------------------------------
 
 main :: IO ()
 main =
-  defaultMain instances
+  Tasty.defaultMain instances
 
 instances ::  TestTree
 instances =
