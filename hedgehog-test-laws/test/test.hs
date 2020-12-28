@@ -1,12 +1,15 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BlockArguments #-}
 module Main where
 
 import           Control.Applicative (liftA2)
 import           Control.Monad (ap)
 
+import           Data.Foldable (for_)
 import           Data.Functor.Classes (Eq1(..))
+import           Data.Function ((&))
 
 import           Hedgehog.Internal.Tree (TreeT(..), NodeT(..))
 
@@ -14,7 +17,7 @@ import qualified Test.QuickCheck as QC
 import           Test.QuickCheck (arbitrary1, choose, vector, Arbitrary(..), Arbitrary1(..), CoArbitrary(..))
 
 import           Test.QuickCheck.Checkers (EqProp(..), eq, TestBatch)
-import           Test.QuickCheck.Classes ()
+import           Test.QuickCheck.Classes (applicative, monad)
 
 import qualified Test.Tasty as Tasty
 import           Test.Tasty (TestTree, testGroup)
@@ -22,26 +25,24 @@ import           Test.Tasty.QuickCheck (testProperties)
 
 -------------------------------------------------------------------------------
 
-import           Control.Monad  (unless)
-import           System.Exit    (exitFailure)
-
 import           Hedgehog
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
 import           Hedgehog.Main
 
+import           Control.Monad.Writer
 -------------------------------------------------------------------------------
 
 hh_main :: IO ()
 hh_main =
   defaultMain [
-      properties
-    , regressionTests
+      groupA
+    , groupB
     ]
 
-properties :: IO Bool
-properties =
+groupA :: IO Bool
+groupA =
   checkParallel $ Group "Properties" [
         ("Property A"
         , property success)
@@ -51,8 +52,8 @@ properties =
         , property failure)
     ]
 
-regressionTests :: IO Bool
-regressionTests =
+groupB :: IO Bool
+groupB =
   checkParallel $ Group "Regression" $
     do
     (a, b) <-
@@ -79,26 +80,49 @@ regressionTests =
 
 -------------------------------------------------------------------------------
 
+my_tests :: IO Bool
+my_tests = checkAllParallel do
+  group "Reversal tests on list" do
+    it "Has some form of name" $ property do
+      "Given a list of ordered items" & annotate
+      xs <- forAll $ Gen.list (Range.linear 0 100) Gen.alpha
+      "Reversed twice should be identity" & annotate
+      reverse (reverse xs) === xs
+      "It should still have all its elements" & annotate
+      length (reverse xs) === length xs
+      "It should have the same elements as the original" & annotate
+      for_ xs (assert . (`elem` reverse xs))
+  group "Other tests" do
+    it "has some other prop" $ property do
+      success
+
+group :: GroupName -> Writer [(PropertyName, Property)] () -> Writer [Group] ()
+group name = tell . pure . Group name . execWriter
+
+it :: PropertyName -> Property -> Writer [(PropertyName, Property)] ()
+it name prop = tell [(name, prop)]
+
+checkAllParallel :: Writer [Group] () -> IO Bool
+checkAllParallel = fmap and . traverse checkParallel . execWriter
+
+-------------------------------------------------------------------------------
+
 main :: IO ()
 main =
   Tasty.defaultMain instances
 
-instances ::  TestTree
+instances :: TestTree
 instances =
-  let
-    testBatch =
-      uncurry testProperties
-  in
     testGroup "Instances" [
       testGroup "TreeT" $
-        testBatch <$> [
-            qc_applicative (undefined :: TreeT Maybe (Bool, Char, Int))
-          , qc_monad (undefined :: TreeT Maybe (Bool, Char, Int))
+        uncurry testProperties <$> [
+            applicative (undefined :: TreeT Maybe (Bool, Char, Int))
+          , monad       (undefined :: TreeT Maybe (Bool, Char, Int))
           ]
     , testGroup "NodeT" $
-        testBatch <$> [
-            qc_applicative (undefined :: NodeT Maybe (Bool, Char, Int))
-          , qc_monad (undefined :: NodeT Maybe (Bool, Char, Int))
+        uncurry testProperties <$> [
+            applicative (undefined :: NodeT Maybe (Bool, Char, Int))
+          , monad       (undefined :: NodeT Maybe (Bool, Char, Int))
           ]
     ]
 
