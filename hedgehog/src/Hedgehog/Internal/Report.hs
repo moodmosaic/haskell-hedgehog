@@ -769,7 +769,7 @@ ppResult name (Report tests discards coverage seed result) = do
 
     GaveUp ->
       pure . WL.vsep $ [
-          icon GaveUpIcon '⚐' . WL.annotate GaveUpText $
+          icon GaveUpIcon 'Γ' . WL.annotate GaveUpText $
             ppName name <+>
             "gave up after" <+>
             ppDiscardCount discards <>
@@ -893,7 +893,7 @@ ppLabel tests w x@(MkLabel name _ minimum_ count) =
 
     licon =
       if not covered then
-        WL.annotate CoverageText "⚠ "
+        WL.annotate CoverageText "! "
       else
         "  "
 
@@ -1024,7 +1024,7 @@ ppCoverBar (CoverPercentage percentage) (CoverPercentage minimum_) =
       --     ++ " " ++ show fillWidth
       ]
   in
-    bar ('█', ['·', '▏', '▎', '▍', '▌', '▋', '▊', '▉'])
+    bar ('⣿', ['·', '⡀', '⡄', '⡆', '⡇', '⣇', '⣧', '⣷'])
 
     -- FIXME Maybe this should be configurable?
     -- Alternative histogram bars:

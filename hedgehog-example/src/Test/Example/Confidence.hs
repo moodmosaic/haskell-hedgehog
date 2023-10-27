@@ -21,6 +21,21 @@ prop_without_confidence =
     cover 60 "number == 1" $ number == 1
 
 ------------------------------------------------------------------------
+-- Example 1
+
+--
+-- https://github.com/hedgehogqa/haskell-hedgehog/pull/288#discussion_r940676278
+--
+
+prop_with_confidence :: Property
+prop_with_confidence =
+  verifiedTermination . withConfidence (10^9) . withTests 1000000 . property $ do
+    number <- forAll (Gen.int $ Range.constant 1 2)
+    cover 50 "number == 1" $ number == 1
+    cover 50 "number == 2" $ number == 2
+
+------------------------------------------------------------------------
+
 tests :: IO Bool
 tests =
   checkSequential $$(discover)
